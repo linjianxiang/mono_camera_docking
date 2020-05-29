@@ -12,7 +12,8 @@ def plot_pose3_on_axes(axes, gRp, origin, axis_length=0.1):
 
     # draw the camera axes
     x_axis = origin + gRp[:, 0] * axis_length
-    line = np.append(origin, x_axis, axis=0) axes.plot(line[:, 0], line[:, 1], line[:, 2], 'r-')
+    line = np.append(origin, x_axis, axis=0) 
+    axes.plot(line[:, 0], line[:, 1], line[:, 2], 'r-')
 
     y_axis = origin + gRp[:, 1] * axis_length
     line = np.append(origin, y_axis, axis=0)
@@ -23,10 +24,12 @@ def plot_pose3_on_axes(axes, gRp, origin, axis_length=0.1):
     axes.plot(line[:, 0], line[:, 1], line[:, 2], 'b-')
 
 #img1 = cv2.imread('/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg',1)          # queryImage
-img1 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg',1)          # queryImage
+#img1 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg',1)          # queryImage
 #img2 = cv2.imread('/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.29.jpg')
-img2 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.29.jpg')
+#img2 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.29.jpg')
 
+img1 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg')
+img2 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958914.09.jpg')
 fx = 3551.342810
 fy = 3522.689669
 cx = 2033.513326

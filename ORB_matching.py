@@ -47,28 +47,24 @@ class matching:
         self.kp2, self.des2 = detector.detectAndCompute(self.gr2,None)
         print ("Points detected: ",len(self.kp1), " and ", len(self.kp2))
     
-        FLANN_INDEX_KDTREE = 0
-        #index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-        #search_params = dict(checks = 50)
-        #
-        #flann = cv2.FlannBasedMatcher(index_params, search_params)
-        #
-        #matches = flann.knnMatch(self.des1,self.des2,k=2)
-        #self.find_goodmatches(matches)
+        FLANN_INDEX_LSH = 6
+        index_params = dict(algorithm = FLANN_INDEX_LSH, table_number=6,key_size=12,multi_probe_level=1)
+        search_params = dict(checks = 50)
+        
+        flann = cv2.FlannBasedMatcher(index_params, search_params)
+        
+        matches = flann.knnMatch(self.des1,self.des2,k=2)
 
-        bf = cv2.BFMatcher()
-        matches = bf.knnMatch(self.des1,self.des2,k=2)
+        #bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+        #
+        #matches = bf.match(self.des1,self.des2)
         self.find_goodmatches(matches)
-        #self.good = sorted(matches, key = lambda x:x.distance)[0:50]
-        #bool_mask = mask_RP.astype(bool)
-        #self.draw_matches(bool_mask)
-
-    
     
     
     def find_goodmatches(self,matches):
         # store all the good matches as per Lowe's ratio test.
         self.good = []
+        #print(matches)
         for m,n in matches:
                 if m.distance < 0.7*n.distance:
                        self.good.append(m)
@@ -76,24 +72,9 @@ class matching:
             src_pts = np.float32([ self.kp1[m.queryIdx].pt for m in self.good ]).reshape(-1,1,2)
             dst_pts = np.float32([ self.kp2[m.trainIdx].pt for m in self.good ]).reshape(-1,1,2)
             
-            #M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-            ##matchesMask = mask.ravel().tolist()
-            E, mask_e = cv2.findEssentialMat(src_pts, dst_pts, focal=1.0, pp=(0., 0.), 
-                                           method=cv2.RANSAC, prob=0.999, threshold=0.001)
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+            matchesMask = mask.ravel().tolist()
             
-            print ("Essential matrix: used ",np.sum(mask_e) ," of total ",len(matches),"matches")
-            
-            points, R, t, mask_RP = cv2.recoverPose(E, src_pts, dst_pts, mask=mask_e)
-            print("points:",points,"\trecover pose mask:",np.sum(mask_RP!=0))
-            print("R:",R,"t:",t.T)
-            
-            matchesMask = mask_RP.astype(bool)
-            img_valid = cv2.drawMatches(self.gr1,self.kp1,self.gr2,self.kp2,self.good, None, 
-                                        matchColor=(0, 255, 0), 
-                                        matchesMask=matchesMask.ravel().tolist(), flags=2)
-            
-            plt.imshow(img_valid)
-            plt.show()
             #print(img1.shape)
             #h,w = img1.shape
             #pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
@@ -104,7 +85,7 @@ class matching:
         else:
             print("not enough matches are found")
             matchesMask = None
-            self.draw_matches(matchesMask)
+        self.draw_matches(matchesMask)
     
     
     def draw_matches(self,matchesMask):
@@ -155,10 +136,9 @@ def main():
     #insert images 
     matching_class.load_image(img1_dir,img2_dir)
     #create a detector
-    #sift= cv2.xfeatures2d.SIFT_create()
-    sift= cv2.xfeatures2d.SURF_create()
+    detector = cv2.ORB_create()
     #scan matching
-    matching_class.match_images(sift)
+    matching_class.match_images(detector)
     
     #kp1_match = np.array([kp1[mat.queryIdx].pt for mat in good])
     #kp2_match = np.array([kp2[mat.trainIdx].pt for mat in good])
