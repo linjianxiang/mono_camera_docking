@@ -63,7 +63,7 @@ bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
 matches = bf.match(des1,des2)
 
-matches = sorted(matches, key = lambda x:x.distance)[0:50]
+matches = sorted(matches, key = lambda x:x.distance)[0:100]
 print(len(matches))
 
 kp1_match = np.array([kp1[mat.queryIdx].pt for mat in matches])
@@ -74,12 +74,22 @@ kp2_match_ud = cv2.undistortPoints(np.expand_dims(kp2_match,axis=1),K,D)
 
 E, mask_e = cv2.findEssentialMat(kp1_match_ud, kp2_match_ud, focal=1.0, pp=(0., 0.), 
                                method=cv2.RANSAC, prob=0.999, threshold=0.001)
+#E, mask_e = cv2.findEssentialMat(kp1_match, kp2_match, focal=1.0, pp=(0., 0.), 
+#                               method=cv2.RANSAC, prob=0.999, threshold=0.001)
 
 print ("Essential matrix: used ",np.sum(mask_e) ," of total ",len(matches),"matches")
 
+
+#R, output rotation matrix.
+#t, output translation vector
+#mask_RP, input/output mask for inliers in points1 and point2. If it is not empty then it marks inliners in points1 and points2
 points, R, t, mask_RP = cv2.recoverPose(E, kp1_match_ud, kp2_match_ud, mask=mask_e)
+#points, R, t, mask_RP = cv2.recoverPose(E, kp1_match, kp2_match, mask=mask_e)
 print("points:",points,"\trecover pose mask:",np.sum(mask_RP!=0))
 print("R:",R,"t:",t.T)
+
+if(points < 20):
+    print("not enough matches, less than 20")
 
 bool_mask = mask_RP.astype(bool)
 img_valid = cv2.drawMatches(gr1,kp1,gr2,kp2,matches, None, 

@@ -70,14 +70,19 @@ class matching:
         # store all the good matches as per Lowe's ratio test.
         self.good = []
         for m,n in matches:
-                if m.distance < 0.7*n.distance:
+                if m.distance < 0.8*n.distance:
                        self.good.append(m)
         if len(self.good) > 10:
-            src_pts = np.float32([ self.kp1[m.queryIdx].pt for m in self.good ]).reshape(-1,1,2)
-            dst_pts = np.float32([ self.kp2[m.trainIdx].pt for m in self.good ]).reshape(-1,1,2)
+            #src_pts = np.float32([ self.kp1[m.queryIdx].pt for m in self.good ]).reshape(-1,1,2)
+            #dst_pts = np.float32([ self.kp2[m.trainIdx].pt for m in self.good ]).reshape(-1,1,2)
+
+            src_pts = np.array([self.kp1[mat.queryIdx].pt for mat in self.good])
+            dst_pts = np.array([self.kp2[mat.trainIdx].pt for mat in self.good])
             
             #M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
             ##matchesMask = mask.ravel().tolist()
+            src_pts = cv2.undistortPoints(np.expand_dims(src_pts,axis=1),self.K,self.D)
+            dst_pts = cv2.undistortPoints(np.expand_dims(dst_pts,axis=1),self.K,self.D)
             E, mask_e = cv2.findEssentialMat(src_pts, dst_pts, focal=1.0, pp=(0., 0.), 
                                            method=cv2.RANSAC, prob=0.999, threshold=0.001)
             
@@ -116,9 +121,6 @@ class matching:
         
         plt.imshow(img3, 'gray'),plt.show()
 
-    def undistort_images(self):
-        self.img1 = cv2.undistortPoints(self.img1,self.K,self.D)
-        self.img2 = cv2.undistortPoints(self.img2,self.K,self.D)
 
 
     def caluclate_transformation(self):
