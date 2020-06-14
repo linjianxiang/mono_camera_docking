@@ -3,6 +3,12 @@ import cv2
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+
+import glob
+import os
+
+
+
 def plot_pose3_on_axes(axes, gRp, origin, axis_length=0.1):
     """Plot a 3D pose on given axis 'axes' with given 'axis_length'."""
     # get rotation and translation (center)
@@ -27,9 +33,13 @@ def plot_pose3_on_axes(axes, gRp, origin, axis_length=0.1):
 #img1 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg',1)          # queryImage
 #img2 = cv2.imread('/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.29.jpg')
 #img2 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.29.jpg')
-
-img1 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg')
-img2 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958914.09.jpg')
+dataset1_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
+filelist1 = glob.glob(dataset1_dir+'*.jpg')
+filelist1 = sorted(filelist1)
+# img1 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/1534891645.64.jpg')
+# img2 = cv2.imread('/home/linjian/datasets/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958914.09.jpg')
+img1 = cv2.imread(filelist1[160])
+img2 = cv2.imread(filelist1[130])
 fx = 3551.342810
 fy = 3522.689669
 cx = 2033.513326
