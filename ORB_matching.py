@@ -117,10 +117,7 @@ class matching:
 
     def getRotation(self):
         return self.R
-class map:
-    def __init__(self,K,D):
-        self.K = K
-        self.D = D
+
 
 def main():
     fx = 3551.342810
