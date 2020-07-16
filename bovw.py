@@ -4,7 +4,8 @@ from sklearn.cluster import KMeans
 import numpy as np
 import glob
 import pickle
-import os.path
+import os
+import sys
 
 def save_trained_bovw(kmeans):
     pickle.dump(kmeans,open("bovw_database.pkl","wb"))
@@ -12,37 +13,53 @@ def save_trained_bovw(kmeans):
 def load_bovw():
     return pickle.load(open("bovw_database.pkl","rb"))
 
-def save_bovw_lib(kmeans):
-    pickle.dump(kmeans,open("bovw_lib.pkl","wb"))
+def save_bovw_lib(his):
+    pickle.dump(his,open("bovw_lib.pkl","wb"))
 
 def load_bovw_lib():
     return pickle.load(open("bovw_lib.pkl","rb"))
 
-
+def generate_db_trainingset():
+    top_folder_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory'
+    
+    image_folders_dir = ([x[0] for x in os.walk(top_folder_dir)])
+    # print(image_folders)
+    f = open("filelist.txt","w")
+    print(len(image_folders_dir))
+    for folder_dir in image_folders_dir:
+        filelist = glob.glob(folder_dir+'/*.jpg')
+        image_number = len(filelist)
+        if (image_number >10):
+            # print(folder_dir)
+            use_image = image_number//15
+            for i in range(0,image_number,use_image):
+                f.write(filelist[i]+'\n')
+    f.close()
+    
 class bovw:
-    def __init__(self,dataset_dir,detector):
-        filelist = glob.glob(dataset_dir+'*.jpg')
-        self.filelist = sorted(filelist)
+    def __init__(self,detector):
+        self.cluster_number = 20
         self.detector = detector
-
+        self.his = []
         #load bovw and
         if (os.path.isfile('./bovw_database.pkl')):
             self.kmeans = load_bovw()
-    def extract_descriptors(self):
+    def extract_descriptors(self,filelist):
         descriptor_list = []
         image_descriptors = []
         # for image_path in self.filelist[100:170]:
-        for image_path in self.filelist:
+        for image_path in filelist:
             image = cv2.imread(image_path)
             image=cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
             kp,des = self.detector.detectAndCompute(image,None)
+            self.add_histogram(des)
             image_descriptors.append(des)
             for descriptor in des:
                 descriptor_list.append(descriptor)
         return descriptor_list,image_descriptors
 
     def descriptor_cluster(self,descriptor_list):
-        kmeans = KMeans(n_clusters =20,n_init=10)
+        kmeans = KMeans(n_clusters =self.cluster_number,n_init=10)
         kmeans.fit(descriptor_list)
         return kmeans
 
@@ -52,7 +69,7 @@ class bovw:
             histogram = self.build_single_histogram(descriptors,cluster_alg)
             histogram_array[idx] = histogram
         return histogram_array
-
+    
     # def build_histogram_list(self,cluster_alg):
 
     def build_single_histogram(self,descriptors,cluster_alg):
@@ -61,8 +78,17 @@ class bovw:
         cluster_result =  cluster_alg.predict(descriptors)
         for i in cluster_result:
             histogram[i] += 1.0
-
         return histogram
+
+    def add_histogram(self, des):
+        his = self.build_single_histogram(des, self.kmeans)
+        # his = np.transpose(his)
+        self.his.append(his)
+
+    def save_bovw_lib(self):
+        self.his = np.array(self.his)
+        self.his = np.transpose(self.his)
+        pickle.dump(self.his,open("bovw_lib.pkl","wb"))
 
 
     ## weighing tf-idf function
@@ -113,29 +139,69 @@ class bovw:
             print("The bovw lib 'bovw_database.pkl' exist")
             return -1
         #extract descriptors from image sets
-        descriptor_list,image_descriptors = self.extract_descriptors()
+        descriptor_list,image_descriptors = self.extract_descriptors(self.fileilst)
         his = self.build_histogram(image_descriptors,self.kmeans)
         his = np.transpose(his)
         save_bovw_lib(his)
 
+    def train_db(self,dataset_dir):
+        if (os.path.isfile('./bovw_database.pkl')):
+            print("The bovw db 'bovw_database.pkl' exist")
+            return
 
-    def train(self):
+        f = open(dataset_dir,"r")
+        filelist = f.read().split('\n')
+        filelist.pop()
+        print("there are ", len(filelist)," images in datase")
+        f.close()
+
+        descriptor_list,image_descriptors = self.extract_descriptors(filelist)
+        kmeans = self.descriptor_cluster(descriptor_list)
+        print(type(kmeans))
+        # print(his)
+        #save the trained model and histgram
+        save_trained_bovw(kmeans)
+
+
+    def train(self,dataset_dir):
+        if (not os.path.isfile('./bovw_database.pkl')):
+            print("The bovw lib 'bovw_database.pkl' does not exist, please ")
+            sys.exit()
+            return
+
+        filelist = glob.glob(dataset_dir+'*.jpg')
+        self.filelist = sorted(filelist)
         if (os.path.isfile('./bovw_database.pkl') and os.path.isfile('bovw_lib.pkl')):
             print("The bovw lib 'bovw_database.pkl' exist")
             return
-        descriptor_list,image_descriptors = self.extract_descriptors()
-        kmeans = self.descriptor_cluster(descriptor_list)
+        
+
+        descriptor_list,image_descriptors = self.extract_descriptors(self.filelist)
+        kmeans = self.kmeans
         his = self.build_histogram(image_descriptors,kmeans)
         his = np.transpose(his)
         print(type(kmeans))
         # print(his)
         #save the trained model and histgram
         save_trained_bovw(kmeans)
-        save_bovw_lib(his)
+        # save_bovw_lib(his)
+        print("his shape is", his.shape)
+        self.his = np.array(self.his)
+        self.his = np.transpose(self.his)
 
-    def test(self, input_image_path):
+        print(self.his.shape)
+        print(self.his)
+        print(his)
+        save_bovw_lib(self.his)
+
+
+
+    def find_match(self,input_image_path):
         #load histogram
-        his = load_bovw_lib()
+        # his = np.array(self.his)
+        his = load_bovw_lib()       
+        print('full his size is ',his.shape)
+        self.kmeans = load_bovw()
         image = cv2.imread(input_image_path)
         image=cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
         kp,des = self.detector.detectAndCompute(image,None)
@@ -152,13 +218,64 @@ class bovw:
         result_cos = np.where(costs[1] == mincosts[1])[0][0]
         print("the minimum cost is ", str(mincosts), "its index is ",result_euclidean,'and',result_cos)
         ##plot matched images
-        # image_matched = self.filelist[result_euclidean]
-        # image_matched = cv2.imread(image_matched)
-        # plt.imshow(image_matched), plt.show()
+        image_matched = self.filelist[result_euclidean]
+        image_matched = cv2.imread(image_matched)
+        fig,axs = plt.subplots(2)
+        axs[0].imshow(image,cmap='gray')
+        axs[1].imshow(image_matched)
+        plt.show()
         
-        # image_matched = self.filelist[result_cos]
-        # image_matched = cv2.imread(image_matched)
-        # plt.imshow(image_matched), plt.show()
+        
+        image_matched = self.filelist[result_cos]
+        print(image_matched)
+        image_matched = cv2.imread(image_matched)
+        fig,axs = plt.subplots(2)
+        axs[0].imshow(image,cmap='gray')
+        axs[1].imshow(image_matched)
+        plt.show()
+        
+        #compute the input image index
+        input_index = self.filelist.index(input_image_path)
+        print('image from ',input_index)
+        print('its cost are', costs[0][input_index],'and',costs[1][input_index])
+       
+
+
+    def test(self, input_image_path):
+        #load histogram
+        his = load_bovw_lib()
+        self.kmeans = load_bovw()
+        image = cv2.imread(input_image_path)
+        image=cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+        kp,des = self.detector.detectAndCompute(image,None)
+        input_his = np.expand_dims(self.build_single_histogram(des, self.kmeans),axis = 1)
+        #normalize the histogram
+        his = self.normToUnitLength(his)
+        input_his = self.normToUnitLength(input_his)
+        #compute cost of histogram, contains cost of euclidean distance and cos angle
+        costs = self.compute_cost_matrices(his,input_his)
+        # print('cost',costs)
+        #find the minmum cost as the best match
+        mincosts = np.amin(costs,axis=1)
+        result_euclidean = np.where(costs[0] == mincosts[0])[0][0]
+        result_cos = np.where(costs[1] == mincosts[1])[0][0]
+        print("the minimum cost is ", str(mincosts), "its index is ",result_euclidean,'and',result_cos)
+        ##plot matched images
+        image_matched = self.filelist[result_euclidean]
+        image_matched = cv2.imread(image_matched)
+        fig,axs = plt.subplots(2)
+        axs[0].imshow(image,cmap='gray')
+        axs[1].imshow(image_matched)
+        plt.show()
+        
+        
+        image_matched = self.filelist[result_cos]
+        print(image_matched)
+        image_matched = cv2.imread(image_matched)
+        fig,axs = plt.subplots(2)
+        axs[0].imshow(image,cmap='gray')
+        axs[1].imshow(image_matched)
+        plt.show()
         
         #compute the input image index
         input_index = self.filelist.index(input_image_path)
@@ -168,12 +285,25 @@ class bovw:
     
 if __name__ == "__main__":
     detector = cv2.ORB_create()
-    # training_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
-    training_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/17h-28m-10s unload/'
-    bovw_class = bovw(training_set_dir,detector)
-    bovw_class.train()
-    # bovw_class.draw_keypoints()
+    training_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
+    # training_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/17h-28m-10s unload/'
+    bovw_class = bovw(detector)
+    # bovw_class.train_db(training_set_dir)
+    bovw_class.train_db('filelist.txt')
+
+    image_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
+    # image_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
+    bovw_class.train(image_set_dir)
+
 
     #testing
-    test_image_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.87.jpg'
-    bovw_class.test(test_image_dir)
+    test_image_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/1534955250.9.jpg'
+    # test_image_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/1534891666.84.jpg'
+    # bovw_class.test(test_image_dir)
+
+
+    # #generate db training set
+    # generate_db_trainingset()
+
+    #find match
+    bovw_class.find_match(test_image_dir)

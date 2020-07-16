@@ -6,6 +6,7 @@ from ORB_matching import matching
 from load_data import load_data
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from bovw import bovw
 
 def plot_pose(pose_array,mapmax,mapmin):
     fig = plt.figure()
@@ -40,6 +41,7 @@ class map:
         self.D = D
 
 def main():
+    # camera matrix
     fx = 3551.342810
     fy = 3522.689669
     cx = 2033.513326
@@ -57,6 +59,7 @@ def main():
     
     D = np.float64([-0.276796, 0.113400, -0.000349, -0.000469])
     
+    #load images
     # dataset1_dir = '/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/'
     # dataset2_dir = '/home/linjian/datasets/Data_trajectory/2018-08-22/'
     # dataset1_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
@@ -64,9 +67,11 @@ def main():
     filelist1 = glob.glob(dataset1_dir+'*.jpg')
     filelist1 = sorted(filelist1)
     img_num = len(filelist1)
+    #load scale as speed of the wheel
     loaded_data = load_data(dataset1_dir)
     scale = loaded_data.get_speed()
     # filelist2 = glob.glob(dataset1_dir+'*.jpg')
+    #initialization
     rotation_array =[]
     transformation_array =[]
     pose_array =[]
@@ -75,6 +80,11 @@ def main():
     rotation_array.append(R)
     transformation_array.append(t)
     pose_array.append(t)
+    
+    #bag of virtual words init
+    detector = cv2.ORB_create()
+    bovw_class = bovw(detector)
+
 
     # for i in range(0,50): 
     for i in range(1,img_num):
@@ -88,6 +98,8 @@ def main():
         detector = cv2.ORB_create()
         #scan matching
         matching_class.match_images(detector)
+        #add into bovw
+        bovw_class.add_histogram(matching_class.des1)
 
         dR = matching_class.getRotation()
         rotation_array.append(dR)
@@ -96,6 +108,8 @@ def main():
         R = dR.dot(R)
         t = t+dt.dot(R)*scale[i-1]
         pose_array.append(t)
+
+    bovw_class.save_bovw_lib()
 
     #convert lists to array
     rotation_array = np.asarray(rotation_array)
