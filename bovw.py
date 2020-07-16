@@ -25,6 +25,9 @@ class bovw:
         self.filelist = sorted(filelist)
         self.detector = detector
 
+        #load bovw and
+        if (os.path.isfile('./bovw_database.pkl')):
+            self.kmeans = load_bovw()
     def extract_descriptors(self):
         descriptor_list = []
         image_descriptors = []
@@ -103,75 +106,66 @@ class bovw:
             cost_matrix_cos[row] = cos_sim
         return cost_matrix_eucl, cost_matrix_cos
 
-    
+
+
+    def comput_histgram(self,image_descriptors):
+        if (not os.path.isfile('./bovw_database.pkl')):
+            print("The bovw lib 'bovw_database.pkl' exist")
+            return -1
+        #extract descriptors from image sets
+        descriptor_list,image_descriptors = self.extract_descriptors()
+        his = self.build_histogram(image_descriptors,self.kmeans)
+        his = np.transpose(his)
+        save_bovw_lib(his)
+
 
     def train(self):
         if (os.path.isfile('./bovw_database.pkl') and os.path.isfile('bovw_lib.pkl')):
             print("The bovw lib 'bovw_database.pkl' exist")
             return
         descriptor_list,image_descriptors = self.extract_descriptors()
-        self.kmeans = self.descriptor_cluster(descriptor_list)
-        self.his = self.build_histogram(image_descriptors,self.kmeans)
-        self.his = np.transpose(self.his)
-        print(type(self.kmeans))
+        kmeans = self.descriptor_cluster(descriptor_list)
+        his = self.build_histogram(image_descriptors,kmeans)
+        his = np.transpose(his)
+        print(type(kmeans))
         # print(his)
-        save_trained_bovw(self.kmeans)
-        save_bovw_lib(self.his)
-        #apply tf-idf reweighting
-        # his = self.reweight_tf_idf(his)
-        # print(his.shape)
-        # print(his)
-        #save database
-    # def test(self,test_image):
+        #save the trained model and histgram
+        save_trained_bovw(kmeans)
+        save_bovw_lib(his)
 
     def test(self, input_image_path):
-        kmeans = load_bovw()
+        #load histogram
         his = load_bovw_lib()
         image = cv2.imread(input_image_path)
         image=cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
         kp,des = self.detector.detectAndCompute(image,None)
-        input_his = np.expand_dims(self.build_single_histogram(des, kmeans),axis = 1)
-
-
-
+        input_his = np.expand_dims(self.build_single_histogram(des, self.kmeans),axis = 1)
+        #normalize the histogram
         his = self.normToUnitLength(his)
         input_his = self.normToUnitLength(input_his)
-        # print('input hist',input_his)
-        # print('data base', his)
-        # print('data base', his)
+        #compute cost of histogram, contains cost of euclidean distance and cos angle
         costs = self.compute_cost_matrices(his,input_his)
-        print('cost',costs)
-
-        # maxcosts = np.amax(costs,axis = 1)
-        # result_euclidean = np.where(costs[0] == maxcosts[0])[0][0]
-        # result_cos = np.where(costs[1] == maxcosts[1])[0][0]
-
-        # print("the maximum cost is ", str(maxcosts), "its index is ",result_euclidean,'and',result_cos)
-        # image_matched = self.filelist[result_euclidean]
-        # image_matched = cv2.imread(image_matched)
-        # plt.imshow(image_matched), plt.show()
-
-        # image_matched = self.filelist[result_cos]
-        # image_matched = cv2.imread(image_matched)
-        # plt.imshow(image_matched), plt.show()
-
-
+        # print('cost',costs)
+        #find the minmum cost as the best match
         mincosts = np.amin(costs,axis=1)
         result_euclidean = np.where(costs[0] == mincosts[0])[0][0]
         result_cos = np.where(costs[1] == mincosts[1])[0][0]
         print("the minimum cost is ", str(mincosts), "its index is ",result_euclidean,'and',result_cos)
-        image_matched = self.filelist[result_euclidean]
-        image_matched = cv2.imread(image_matched)
-        plt.imshow(image_matched), plt.show()
+        ##plot matched images
+        # image_matched = self.filelist[result_euclidean]
+        # image_matched = cv2.imread(image_matched)
+        # plt.imshow(image_matched), plt.show()
         
-        image_matched = self.filelist[result_cos]
-        image_matched = cv2.imread(image_matched)
-        plt.imshow(image_matched), plt.show()
+        # image_matched = self.filelist[result_cos]
+        # image_matched = cv2.imread(image_matched)
+        # plt.imshow(image_matched), plt.show()
         
-
-        input_index = self.filelist.index('/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/17h-28m-10s unload/1534958913.87.jpg')
+        #compute the input image index
+        input_index = self.filelist.index(input_image_path)
         print('image from ',input_index)
         print('its cost are', costs[0][input_index],'and',costs[1][input_index])
+
+    
 if __name__ == "__main__":
     detector = cv2.ORB_create()
     # training_set_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
