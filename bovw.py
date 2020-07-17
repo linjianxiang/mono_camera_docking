@@ -201,7 +201,7 @@ class bovw:
         # his = np.array(self.his)
         his = load_bovw_lib()       
         print('full his size is ',his.shape)
-        self.kmeans = load_bovw()
+        # self.kmeans = load_bovw()
         image = cv2.imread(input_image_path)
         image=cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
         kp,des = self.detector.detectAndCompute(image,None)
@@ -218,29 +218,67 @@ class bovw:
         result_cos = np.where(costs[1] == mincosts[1])[0][0]
         print("the minimum cost is ", str(mincosts), "its index is ",result_euclidean,'and',result_cos)
         ##plot matched images
-        image_matched = self.filelist[result_euclidean]
-        image_matched = cv2.imread(image_matched)
-        fig,axs = plt.subplots(2)
-        axs[0].imshow(image,cmap='gray')
-        axs[1].imshow(image_matched)
-        plt.show()
+        # image_matched = self.filelist[result_euclidean]
+        # image_matched = cv2.imread(image_matched)
+        # fig,axs = plt.subplots(2)
+        # axs[0].imshow(image,cmap='gray')
+        # axs[1].imshow(image_matched)
+        # plt.show()
         
         
-        image_matched = self.filelist[result_cos]
-        print(image_matched)
-        image_matched = cv2.imread(image_matched)
-        fig,axs = plt.subplots(2)
-        axs[0].imshow(image,cmap='gray')
-        axs[1].imshow(image_matched)
-        plt.show()
+        # image_matched = self.filelist[result_cos]
+        # print(image_matched)
+        # image_matched = cv2.imread(image_matched)
+        # fig,axs = plt.subplots(2)
+        # axs[0].imshow(image,cmap='gray')
+        # axs[1].imshow(image_matched)
+        # plt.show()
         
         #compute the input image index
         input_index = self.filelist.index(input_image_path)
         print('image from ',input_index)
         print('its cost are', costs[0][input_index],'and',costs[1][input_index])
+        return result_cos,mincosts[1] #return the index and cost of minimum
        
+        
+    def find_lc(self,des):
+        #load histogram
+        # his = np.array(self.his)
+        his = self.his
+        his = np.array(his)
+        his = np.transpose(his)
 
-
+        input_his = np.expand_dims(self.build_single_histogram(des, self.kmeans),axis = 1)
+        #normalize the histogram
+        his = self.normToUnitLength(his)
+        input_his = self.normToUnitLength(input_his)
+        #compute cost of histogram, contains cost of euclidean distance and cos angle
+        costs = self.compute_cost_matrices(his,input_his)
+        # print('cost',costs)
+        #find the minmum cost as the best match
+        mincosts = np.amin(costs,axis=1)
+        # result_euclidean = np.where(costs[0] == mincosts[0])[0][0]
+        result_cos = np.where(costs[1] == mincosts[1])[0][0]
+        # print("the minimum cost is ", str(mincosts), "its index is ",result_euclidean,'and',result_cos)
+        ##plot matched images
+        # image_matched = self.filelist[result_euclidean]
+        # image_matched = cv2.imread(image_matched)
+        # fig,axs = plt.subplots(2)
+        # axs[0].imshow(image,cmap='gray')
+        # axs[1].imshow(image_matched)
+        # plt.show()
+        
+        
+        # image_matched = self.filelist[result_cos]
+        # print(image_matched)
+        # image_matched = cv2.imread(image_matched)
+        # fig,axs = plt.subplots(2)
+        # axs[0].imshow(image,cmap='gray')
+        # axs[1].imshow(image_matched)
+        # plt.show()
+        return result_cos,mincosts[1] #return the index and cost of minimum
+       
+        
     def test(self, input_image_path):
         #load histogram
         his = load_bovw_lib()

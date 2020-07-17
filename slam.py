@@ -2,11 +2,13 @@ import numpy as np
 import cv2
 import glob
 import os
+import pickle
 from ORB_matching import matching
 from load_data import load_data
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from bovw import bovw
+from loop_closure import loopclosure
 
 def plot_pose(pose_array,mapmax,mapmin):
     fig = plt.figure()
@@ -29,7 +31,8 @@ def plot_camera_pose3d(pose_array,ax,mapmax,mapmin):
     ax.set_zlim([mapmin,mapmax])
 
     # plt.show()
-
+def save_to_pickle(content,filename):
+    pickle.dump(content,open(filename,"wb"))
 def plot_camera_pose2d(pose_array,ax,mapmax,mapmin):
     ax.plot(pose_array[:,0,0],pose_array[:,0,1], c='r', marker='o')
     ax.axis((mapmin,mapmax,mapmin,mapmax))
@@ -85,6 +88,8 @@ def main():
     detector = cv2.ORB_create()
     bovw_class = bovw(detector)
 
+    #init loop closure class
+    loopclosure_class = loopclosure()
 
     # for i in range(0,50): 
     for i in range(1,img_num):
@@ -100,7 +105,7 @@ def main():
         matching_class.match_images(detector)
         #add into bovw
         bovw_class.add_histogram(matching_class.des1)
-
+        #calculate rotation and transformation
         dR = matching_class.getRotation()
         rotation_array.append(dR)
         dt = np.transpose(matching_class.getTransformation())
@@ -108,9 +113,17 @@ def main():
         R = dR.dot(R)
         t = t+dt.dot(R)*scale[i-1]
         pose_array.append(t)
+        #find loop closure
+        lc_index,lc_cost = bovw_class.find_lc(matching_class.des2)
+        print(lc_cost)
+        if (lc_cost < 0.01):
+            img_lc = cv2.imread(filelist1[lc_index])
+            cv2.imshow('Loop closure matched',img_lc)
+        cv2.waitKey(1)        
+
 
     bovw_class.save_bovw_lib()
-
+    save_to_pickle(filelist1,"image_file_list")
     #convert lists to array
     rotation_array = np.asarray(rotation_array)
     transformation_array = np.asarray(transformation_array)

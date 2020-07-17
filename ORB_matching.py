@@ -61,6 +61,7 @@ class matching:
         
         if(points < 20):
             print("not enough matches, less than 20")
+            return -1
 
 
         # draw matchings
@@ -72,7 +73,6 @@ class matching:
         # plt.imshow(img_valid)
         # plt.show()
         cv2.imshow('feature matching',img_valid)
-        cv2.waitKey(1)
 
 
     
