@@ -9,13 +9,14 @@ class matching:
     def __init__(self,K,D):
         self.K = K
         self.D = D
-
+        self.goodkf_flag = True
     def load_image(self,img1,img2):
         self.img1 = img1
         self.img2 = img2
         # Convert images to greyscale
         self.gr1=cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY)
         self.gr2=cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
+        self.goodkf_flag = True
 
     def get_gray_imgs(self):
         return self.gr1,self.gr2
@@ -28,10 +29,21 @@ class matching:
 
         bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
         matches = bf.match(self.des1,self.des2)
-        self.find_goodbfmatches(matches)
+        print("len matches is, ", len(matches), "len kp is, ",len(self.kp1))
+
+        if (len(matches) > 0.7*len(self.kp1) or len(matches) < 0.1*len(self.kp1)):
+            print("too many/less matches")
+            self.goodkf_flag = False
+
+        goodmatches =  self.find_goodbfmatches(matches)
+        return self.goodkf_flag, goodmatches
 
 
+    def keyframe(self):
+        print("get key frame")
 
+    def compute_relative_scale(self,kp1_match,kp2_match):
+        print("compute relative scale")
 
 
     def find_goodbfmatches(self,matches):
@@ -41,10 +53,6 @@ class matching:
         kp1_match = np.array([self.kp1[mat.queryIdx].pt for mat in matches])
         kp2_match = np.array([self.kp2[mat.trainIdx].pt for mat in matches])
         
-        # kp1_match = cv2.undistortPoints(np.expand_dims(kp1_match,axis=1),self.K,self.D)
-        # kp2_match = cv2.undistortPoints(np.expand_dims(kp2_match,axis=1),self.K,self.D)
-
-
         #the camera matrix can be used during finding essential matrix ex. findEssential(kp1_match, kp2_match, cameramatrix, method=cv2.RANSAC, prob=0.999, threshold=0.001) 
         E, mask_e = cv2.findEssentialMat(kp1_match, kp2_match, focal=1.0, pp=(0., 0.), 
                                        method=cv2.RANSAC, prob=0.999, threshold=0.001)
@@ -61,7 +69,9 @@ class matching:
         
         if(points < 20):
             print("not enough matches, less than 20")
-            return -1
+
+        
+        print("shape is ",kp1_match.shape)
 
 
         # draw matchings
@@ -73,6 +83,7 @@ class matching:
         # plt.imshow(img_valid)
         # plt.show()
         cv2.imshow('feature matching',img_valid)
+        return kp1_match, kp2_match
 
 
     

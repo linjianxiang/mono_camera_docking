@@ -92,21 +92,29 @@ def main():
 
     #init loop closure class
     loopclosure_class = loopclosure()
+    loopclosure_pairs = []
 
-    #init the relative scale list
-    relative_scale_list = []
+
 
     #init keypoints and descriptors
     keypoints_list = []
     descriptors_list = []
 
-    #keyframe flags
-
-
+    #keyframe init
+    keyframe_file_list = []
+    keyframe_file_list.append(filelist1[0])
+    keyframe_number = 1
+    frame_skipped = 0
+    frame_skipped_threshold = 15
+    
     #initialize input images 
     img1 = cv2.imread(filelist1[0])
     img2 = cv2.imread(filelist1[1]) 
     keyframe_index = 1
+    
+    #init the relative scale list
+    relative_scale_list = []
+    relative_scale_list.append(1)
     # for i in range(0,50): 
     for i in range(1,img_num):
    
@@ -119,26 +127,50 @@ def main():
 
         #scan matching
         enough_match,matches = matching_class.match_images(detector)
-        if matches == -1 or scale[i-1] < 0.01:
-            print('not a good keyframe')
+        #keyframe choose conditions are 
+        #a. not skip more than skipped threshold frames
+        #b. real scale are always not 0
+        #c. have enough matches
+        if (enough_match == False or scale[i-1] < 0.001) and (frame_skipped < frame_skipped_threshold):
+            print("for the ",i,"image absolute scale is ",scale[i-1])
+            # print('not a good keyframe')
+            frame_skipped = frame_skipped+1
             keyframe_index = keyframe_index+1
+            print("keyframe index is ",keyframe_index, "skipped ",frame_skipped)
             if keyframe_index >img_num-1:
                 break
             img2 = cv2.imread(filelist1[keyframe_index])
             continue
+
+
+        #get keypoints
         kp1_match,kp2_match = matches
         keypoints_list.append(matching_class.kp1)
         descriptors_list.append(matching_class.des1)
 
         #calculate the relative scale
-        try:
-            relative_scale = comput_relative_scale(kp1_match,kp2_match)
-            relative_scale_list.append(relative_scale)
-            print("for the ",i,"image relative scale is ",relative_scale)
-            print("for the ",i,"image absolute scale is ",scale[i-1])
-            print("for the ",i,"image calculated absolute scale is ",scale[i-2]/relative_scale_list[i-1]*relative_scale)      
-        except:
-            print("An exception occurred")
+        relative_scale = comput_relative_scale(kp1_match,kp2_match)
+        #remove absolute wrong scale
+        if relative_scale >5:
+            keyframe_index = keyframe_index+1
+            print("keyframe index is ",keyframe_index)
+            if keyframe_index >img_num-1:
+                break
+            img2 = cv2.imread(filelist1[keyframe_index])
+            continue
+        #
+        cumulate_relative_scale = relative_scale_list[-1]*relative_scale
+        relative_scale_list.append(cumulate_relative_scale)
+        print("for the ",i,"image relative scale between two keyframe is ",relative_scale)
+        print("for the ",i,"image calculated relative scale relate to the first keyframe is ",cumulate_relative_scale)      
+ 
+
+        #reinit frame_skipped
+        frame_skipped = 0
+
+        #append keyframe files
+        keyframe_file_list.append(filelist1[keyframe_index])
+
         #add into bovw
         bovw_class.add_histogram(matching_class.des1)
 
@@ -148,28 +180,36 @@ def main():
         dt = np.transpose(matching_class.getTransformation())
         transformation_array.append(dt)
         R = dR.dot(R)
-        t = t+dt.dot(R)*scale[i-1]
+        t = t+dt.dot(R)*relative_scale_list[-1]
         pose_array.append(t)
 
         #find loop closure
         lc_index,lc_cost = bovw_class.find_lc(matching_class.des2)
+        lc_indices = bovw_class.get_lowest_costs_index(3) # number of lowest cost indices
         print(lc_cost)
-        if (lc_cost < 0.01):
-            img_lc = cv2.imread(filelist1[lc_index])
-            cv2.imshow('Loop closure matched',img_lc)
-            #scale calculate, 1st calutate the good matches, then relative scale
-            # lc_scale = comput_relative_scale(,)
-            # print('lc scale is ', scale[i-2]/relative_scale_list[i-1]*lc_scale)
-        cv2.waitKey(1)  
+        for lc_i in lc_indices:
+            if (lc_cost < 0.02):
+                img_lc = cv2.imread(keyframe_file_list[lc_i])
+                cv2.imshow('Loop closure matched',img_lc)
+                #add the loopclosure kf to list
+                loopclosure_pairs.append([keyframe_number,lc_i])
+                #scale calculate, 1st calutate the good matches, then relative scale
+                # lc_scale = comput_relative_scale(,)
+                # print('lc scale is ', scale[i-2]/relative_scale_list[i-1]*lc_scale)
+        cv2.waitKey(1) 
+        #assign new keyframe image
+        keyframe_number = keyframe_number+1
         img1 = img2
         keyframe_index = keyframe_index+1
         if keyframe_index >img_num-1:
             break
+        #plot lc matched image
         img2 = cv2.imread(filelist1[keyframe_index])             
 
 
+    print("loopclosure pairs are:", loopclosure_pairs)
     bovw_class.save_bovw_lib()
-    save_to_pickle(filelist1,"image_file_list")
+    save_to_pickle(keyframe_file_list,"image_file_list.pkl")
     #convert lists to array
     rotation_array = np.asarray(rotation_array)
     transformation_array = np.asarray(transformation_array)
@@ -179,6 +219,7 @@ def main():
     #plot
     # plot_camera_pose3d(pose_array)
     # plot_camera_pose2d(pose_array)
+    print('there are ', str(len(pose_array)),'number of camera poses')
     plot_pose(pose_array,mapmax,mapmin)
     print('there are ', str(len(pose_array)),'number of camera poses')
     # ax.plot3D(pose_array, yline, zline, 'gray')

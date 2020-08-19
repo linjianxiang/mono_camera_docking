@@ -253,12 +253,12 @@ class bovw:
         his = self.normToUnitLength(his)
         input_his = self.normToUnitLength(input_his)
         #compute cost of histogram, contains cost of euclidean distance and cos angle
-        costs = self.compute_cost_matrices(his,input_his)
+        self.costs = self.compute_cost_matrices(his,input_his)
         # print('cost',costs)
         #find the minmum cost as the best match
-        mincosts = np.amin(costs,axis=1)
+        mincosts = np.amin(self.costs,axis=1)
         # result_euclidean = np.where(costs[0] == mincosts[0])[0][0]
-        result_cos = np.where(costs[1] == mincosts[1])[0][0]
+        result_cos_index = np.where(self.costs[1] == mincosts[1])[0][0]
         # print("the minimum cost is ", str(mincosts), "its index is ",result_euclidean,'and',result_cos)
         ##plot matched images
         # image_matched = self.filelist[result_euclidean]
@@ -276,8 +276,24 @@ class bovw:
         # axs[0].imshow(image,cmap='gray')
         # axs[1].imshow(image_matched)
         # plt.show()
-        return result_cos,mincosts[1] #return the index and cost of minimum
+        return result_cos_index,mincosts[1] #return the index and cost of minimum
        
+    def get_lowest_costs_index(self,num):
+        cost = np.sort(self.costs,axis=1)
+        # print("cost is ", cost, " shape is ", cost.shape)
+        if num > cost.shape[1]:
+            num = cost.shape[1]
+        indices = []
+        for i in range(num):
+            # print(num)
+            # print(i)
+            # print(self.costs[1],"and ", cost[0])
+            # print(np.where(self.costs[1] == cost[1][i]))
+            indices.append(np.where(self.costs[1] == cost[1][i])[0][0])
+        return indices       
+
+    def get_costs(self):
+        return  self.costs 
         
     def test(self, input_image_path):
         #load histogram
