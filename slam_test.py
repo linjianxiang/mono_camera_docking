@@ -10,6 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from bovw import bovw
 from loop_closure import loopclosure
 from relative_scale import comput_relative_scale
+from optimization import PoseGraphOptimization
 
 def plot_pose(pose_array,mapmax,mapmin):
     fig = plt.figure()
@@ -94,6 +95,8 @@ def main():
     loopclosure_class = loopclosure()
     loopclosure_pairs = []
 
+    #optimization initialization
+    optimization_class = PoseGraphOptimization()
 
 
     #init keypoints and descriptors
@@ -222,6 +225,10 @@ def main():
     print('there are ', str(len(pose_array)),'number of camera poses')
     plot_pose(pose_array,mapmax,mapmin)
     print('there are ', str(len(pose_array)),'number of camera poses')
+
+
+
+    
     # ax.plot3D(pose_array, yline, zline, 'gray')
     # plt.show()
     #kp1_match = np.array([kp1[mat.queryIdx].pt for mat in good])
