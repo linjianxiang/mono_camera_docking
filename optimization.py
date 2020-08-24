@@ -100,7 +100,10 @@ if __name__ == "__main__":
     opt.add_edge(vertices[1],vertices[2],measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),np.array([0,-1,0])))
     opt.add_edge(vertices[0],vertices[2],measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),np.array([0,-2,0])))
 
-    opt.optimize(2)
+    opt.initialize_optimization()
+    print("error", opt.compute_active_errors())
+
+    opt.optimize(1)
 
     if opt.vertex(0).fixed():
         print('First fixed')
@@ -109,11 +112,15 @@ if __name__ == "__main__":
     print(opt.get_pose(1).translation())
     print(opt.get_pose(2).translation())
 
+    print("error", opt.compute_active_errors())
+
     opt.optimize(5)
 
     print(opt.get_pose(0).translation())
     print(opt.get_pose(1).translation())
     print(opt.get_pose(2).translation())
+
+    print("error", opt.compute_active_errors())
     # print(estimated.rotation())
 
     
