@@ -3,6 +3,7 @@ import cv2
 import glob
 import os
 import pickle
+import g2o
 from ORB_matching import matching
 from load_data import load_data
 from matplotlib import pyplot as plt
@@ -67,8 +68,8 @@ def main():
     #load images
     # dataset1_dir = '/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/'
     # dataset2_dir = '/home/linjian/datasets/Data_trajectory/2018-08-22/'
-    # dataset1_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
-    dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
+    dataset1_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
+    # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
     filelist1 = glob.glob(dataset1_dir+'*.jpg')
     filelist1 = sorted(filelist1)
     img_num = len(filelist1)
@@ -118,15 +119,16 @@ def main():
     #init the relative scale list
     relative_scale_list = []
     relative_scale_list.append(1)
-    # for i in range(0,50): 
+
+    #initialize matching class with camera parameters
+    matching_class = matching(K,D)
+    #create a detector
+    detector = cv2.ORB_create()
+    # for i in range(0,40): 
     for i in range(1,img_num):
-   
-        #initialize matching class with camera parameters
-        matching_class = matching(K,D)
         #insert images 
         matching_class.load_image(img1,img2)
-        #create a detector
-        detector = cv2.ORB_create()
+
 
         #scan matching
         enough_match,matches = matching_class.match_images(detector)
@@ -195,7 +197,7 @@ def main():
                 img_lc = cv2.imread(keyframe_file_list[lc_i])
                 cv2.imshow('Loop closure matched',img_lc)
                 #add the loopclosure kf to list
-                loopclosure_pairs.append([keyframe_number,lc_i])
+                loopclosure_pairs.append([lc_i,keyframe_number])
                 #scale calculate, 1st calutate the good matches, then relative scale
                 # lc_scale = comput_relative_scale(,)
                 # print('lc scale is ', scale[i-2]/relative_scale_list[i-1]*lc_scale)
@@ -209,8 +211,55 @@ def main():
         #plot lc matched image
         img2 = cv2.imread(filelist1[keyframe_index])             
 
-
     print("loopclosure pairs are:", loopclosure_pairs)
+    ##############optimization
+    #add vertices
+    opt = PoseGraphOptimization()
+    for vertex_id in range(len(keyframe_file_list)):
+        pose = g2o.Isometry3d(g2o.Quaternion(0,0,0,1),np.transpose(pose_array[vertex_id]))
+        if vertex_id == 0:
+            opt.add_vertex(vertex_id,pose,True)
+        else:
+            opt.add_vertex(vertex_id,pose)
+
+    #get measurement
+    # for pairs in loopclosure_pairs:
+        #load loopclosed keyframe pairs
+    pair_id = 1
+    keyframe_id = loopclosure_pairs[pair_id][0]
+    keyframe_id2 = loopclosure_pairs[pair_id][1]
+    img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
+    img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
+    matching_class.load_image(img1,img2)
+    #scan matching
+    enough_match,matches = matching_class.match_images(detector)       
+    kp1_match,kp2_match = matches
+
+    #calculate the relative scale
+    relative_scale = comput_relative_scale(kp1_match,kp2_match)
+    #remove absolute wrong scale
+    if relative_scale >5:
+        print('bad scale')
+        # continue
+    measurement_scale = relative_scale_list[keyframe_id]*relative_scale
+    dt = np.transpose(pose_array[keyframe_id] - pose_array[keyframe_id2])
+    # dt = matching_class.getTransformation()
+    print("scale, ",measurement_scale)
+    print("dt, ", dt)
+    print("dt, ", dt.shape)
+    measurement= measurement_scale*dt
+    #add to edge
+    opt.add_edge(opt.vertex(keyframe_id2),opt.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
+
+    opt.optimize(2)
+    print("original pose0 is, ",pose_array[keyframe_id])
+    print("original pose1 is, ",pose_array[keyframe_id2])
+    print("measurement is ,", measurement)
+    print("optimized pose is",opt.get_pose(keyframe_id2).translation())
+
+
+    ##############end optimization
+
     bovw_class.save_bovw_lib()
     save_to_pickle(keyframe_file_list,"image_file_list.pkl")
     #convert lists to array
