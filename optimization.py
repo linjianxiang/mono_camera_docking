@@ -57,7 +57,7 @@ class PoseGraphOptimization(g2o.SparseOptimizer):
         
     def add_edge(self, v0,v1, measurement=None, 
             information=np.identity(6),
-            robust_kernel=g2o.RobustKernelHuber(np.sqrt(5.991))): #95% CI
+            robust_kernel = None): #95% CI
         
         edge = g2o.EdgeSE3()
         # edge = g2o.EdgeProjectXYZ2UV()
@@ -69,6 +69,7 @@ class PoseGraphOptimization(g2o.SparseOptimizer):
         edge.set_measurement(measurement)  # relative pose
         edge.set_information(information)
         # edge.set_parameter_id(0, 0)
+        robust_kernel=g2o.RobustKernelHuber(np.sqrt(5.991))#5.991
         if robust_kernel is not None:
             edge.set_robust_kernel(robust_kernel)
         super().add_edge(edge)

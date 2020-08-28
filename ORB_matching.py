@@ -29,10 +29,10 @@ class matching:
 
         bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
         matches = bf.match(self.des1,self.des2)
-        print("len matches is, ", len(matches), "len kp is, ",len(self.kp1))
+        # print("len matches is, ", len(matches), "len kp is, ",len(self.kp1))
 
         if (len(matches) > 0.7*len(self.kp1) or len(matches) < 0.1*len(self.kp1)):
-            print("too many/less matches")
+            # print("too many/less matches")
             self.goodkf_flag = False
 
         goodmatches =  self.find_goodbfmatches(matches)
@@ -64,14 +64,14 @@ class matching:
         #t, output translation vector
         #mask_RP, input/output mask for inliers in points1 and point2. If it is not empty then it marks inliners in points1 and points2
         points, self.R, self.t, mask_RP = cv2.recoverPose(E, kp1_match, kp2_match, mask=mask_e)
-        print("points:",points,"\trecover pose mask:",np.sum(mask_RP!=0))
+        # print("points:",points,"\trecover pose mask:",np.sum(mask_RP!=0))
         # print("R:",self.R,"t:",self.t.T)
         
         if(points < 20):
             print("not enough matches, less than 20")
 
         
-        print("shape is ",kp1_match.shape)
+        # print("shape is ",kp1_match.shape)
 
 
         # draw matchings
@@ -82,6 +82,7 @@ class matching:
         
         # plt.imshow(img_valid)
         # plt.show()
+        # img_valid.resize([512,640])
         cv2.imshow('feature matching',img_valid)
         return kp1_match, kp2_match
 
