@@ -374,12 +374,13 @@ if __name__ == "__main__":
     bovw_class.train_db('filelist.txt')
 
 
-    image_set_dir = top_dir+'/sequence_30/resized_images/'
+    # image_set_dir = top_dir+'/sequence_30/resized_images/'
+    image_set_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/load_unload/'
     bovw_class.train(image_set_dir)
 
 
     # #testing
-    test_image_dir = image_set_dir+'155.jpg'
+    test_image_dir = image_set_dir+'2.0.jpg'
     bovw_class.test(test_image_dir)
     lc_indices = bovw_class.get_lowest_costs_index(100)
     print(lc_indices)

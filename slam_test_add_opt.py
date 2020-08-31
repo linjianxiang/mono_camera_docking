@@ -14,14 +14,17 @@ from loop_closure import loopclosure
 from relative_scale import comput_relative_scale
 from optimization import PoseGraphOptimization
 
-def plot_pose(pose_array,mapmax,mapmin):
-    fig = plt.figure()
+def plot_pose(pose_array):
+    mapmax = np.amax(pose_array) +2
+    mapmin = np.amin(pose_array) -2
+    fig = plt.figure()    
     ax1 = fig.add_subplot(211, projection='3d')
     plot_camera_pose3d(pose_array,ax1,mapmax,mapmin)
     ax2 = fig.add_subplot(212)
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
     plot_camera_pose2d(pose_array,ax2,mapmax,mapmin)
+    # plt.show(block=False)
 
 def plot_camera_pose3d(pose_array,ax,mapmax,mapmin):
 
@@ -73,8 +76,8 @@ def main():
     # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
     # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/raw_data/2018-08-22/17h-21m-57s load/'
     # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/raw_data/2018-08-22/17h-24m-21s unload/'
-    dataset1_dir = '/home/linjian/dataset/tum_image/sequence_30/resized_images/'
-    # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/load_unload/'
+    # dataset1_dir = '/home/linjian/dataset/tum_image/sequence_30/resized_images/'
+    dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/load_unload/'
     filelist1 = glob.glob(dataset1_dir+'*.jpg')
     # filelist1 = sorted(filelist1)
     filelist1.sort(key=lambda f: int(re.sub('\D', '', f)))
@@ -122,8 +125,8 @@ def main():
     keyframe_file_list.append(filelist1[0])
     keyframe_number = 1
     frame_skipped = 0
-    frame_skipped_threshold = 15
-    
+    frame_skipped_floor = 5
+    frame_skipped_ceil = 20
     #initialize input images 
     img1 = cv2.imread(filelist1[0])
     img2 = cv2.imread(filelist1[1]) 
@@ -137,22 +140,22 @@ def main():
     matching_class = matching(K,D)
     #create a detector
     detector = cv2.ORB_create(nfeatures=800)
-    # for i in range(0,170): 
+    for i in range(0,170): 
     # for i in range(1,img_num):
-    for i in range(0,img_num):
+    # for i in range(0,img_num):
         #insert images 
         matching_class.load_image(img1,img2)
 
 
         #scan matching
-        enough_match,matches = matching_class.match_images(detector)
+        goodkf,matches = matching_class.match_images(detector)
         #keyframe choose conditions are 
         #a. not skip more than skipped threshold frames
         #b. real scale are always not 0
         #c. have enough matches
         #d. the adjacent frames
         # if (enough_match == False or scale[i-1] < 0.001) and (frame_skipped < frame_skipped_threshold):
-        if (enough_match == False) and (frame_skipped < frame_skipped_threshold):
+        if (goodkf == False or frame_skipped<frame_skipped_floor) and (frame_skipped < frame_skipped_ceil):
             # print("for the ",i,"image absolute scale is ",scale[i-1])
             # print('not a good keyframe')
             frame_skipped = frame_skipped+1
@@ -204,7 +207,11 @@ def main():
         R = dR.dot(R)
         t = t+dt
         pose_array.append(t)
-
+        #plot
+        # plot_pose(np.asarray(pose_array))
+        # plt.show()
+        # cv2.waitKey(1) 
+        # plt.close()
         ###############optimizatoin###############
         #####add vertex
         vertex_id = len(pose_array)-1
@@ -212,7 +219,7 @@ def main():
 
         optimization_class.add_vertex(vertex_id,pose)
 
-        #####add edge 
+        #####add edge between adjacent frames 
         constraint = dt + np.append(np.random.normal(0,0,2),np.array([0]),axis=0)
         constraint = np.transpose(constraint)
         optimization_class.add_edge(optimization_class.vertex(vertex_id),optimization_class.vertex(vertex_id-1),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),constraint))
@@ -223,8 +230,10 @@ def main():
         lc_index,lc_cost = bovw_class.find_lc(matching_class.des2)
         lc_indices = bovw_class.get_lowest_costs_index(max_num_lc) # number of lowest cost indices
         print(lc_cost)
+        # img_lc = cv2.imread(keyframe_file_list[lc_index])
+        # cv2.imshow('Loop closure matched',img_lc)
         for lc_i in lc_indices:
-            if (lc_cost < 0.05) and (lc_i < keyframe_number -10):
+            if (lc_cost < 0.15) and (lc_i < keyframe_number -5):
                 img_lc = cv2.imread(keyframe_file_list[lc_i])
                 cv2.imshow('Loop closure matched',img_lc)
                 #add the loopclosure kf to list
@@ -254,33 +263,39 @@ def main():
     #         opt.add_vertex(vertex_id,pose)
 
     #get measurement
-    # for pairs in loopclosure_pairs:
-    #     # load loopclosed keyframe pairs
-    #     keyframe_id = pairs[0]
-    #     keyframe_id2 = pairs[1]
+    print(keyframe_file_list)
+    print(len(keyframe_file_list))
 
-    #     img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
-    #     img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
-    #     matching_class.load_image(img1,img2)
-    #     #scan matching
-    #     enough_match,matches = matching_class.match_images(detector)       
-    #     kp1_match,kp2_match = matches
+    save_to_pickle(keyframe_file_list,"keyframe_file_list.pkl")
+    save_to_pickle(loopclosure_pairs,"loopclosure_pairs.pkl")
+    for pairs in loopclosure_pairs:
+        # load loopclosed keyframe pairs
+        keyframe_id = pairs[0]
+        keyframe_id2 = pairs[1]
 
-    #     #calculate the relative scale
-    #     relative_scale = comput_relative_scale(kp1_match,kp2_match)
-    #     #remove absolute wrong scale
-    #     if relative_scale >3:
-    #         print('bad scale')
-    #         # continue
-    #     measurement_scale = relative_scale_list[keyframe_id]*relative_scale
-    #     dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
-    #     # dt = matching_class.getTransformation()
-    #     # print("scale, ",measurement_scale)
-    #     # print("dt, ", dt)
-    #     # print("dt, ", dt.shape)
-    #     measurement= measurement_scale*dt
-    #     #add to edge
-    #     optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
+        img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
+        img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
+        matching_class.load_image(img1,img2)
+        #scan matching
+        enough_match,matches = matching_class.match_images(detector)     
+        cv2.waitKey(1)   
+        kp1_match,kp2_match = matches
+
+        #calculate the relative scale
+        relative_scale = comput_relative_scale(kp1_match,kp2_match)
+        #remove absolute wrong scale
+        if relative_scale >2:
+            print('bad scale')
+            # continue
+        measurement_scale = relative_scale_list[keyframe_id]*relative_scale
+        dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
+        # dt = matching_class.getTransformation()
+        # print("scale, ",measurement_scale)
+        # print("dt, ", dt)
+        # print("dt, ", dt.shape)
+        measurement= measurement_scale*dt
+        #add to edge
+        optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
 
 
     # pair_id = 0
@@ -329,30 +344,25 @@ def main():
 
     ##############end optimization
 
-    bovw_class.save_bovw_lib()
+    # bovw_class.save_bovw_lib()
     save_to_pickle(keyframe_file_list,"image_file_list.pkl")
     #convert lists to array
     #plot origin
     rotation_array = np.asarray(rotation_array)
     transformation_array = np.asarray(transformation_array)
     pose_array=np.asarray(pose_array)
-    mapmax = np.amax(pose_array) +2
-    mapmin = np.amin(pose_array) -2
-    plot_pose(pose_array,mapmax,mapmin)
+    plot_pose(pose_array)
     print(pose_array.shape)
-    # plt.show()
+    plt.show()
 
-    # optimization_class.optimize(2)
-    # #plot opt
-    # opt_pose = []
-    # for i in range(len(pose_array)):
-    #     arr =optimization_class.get_pose(i).translation()
-    #     opt_pose.append(np.expand_dims(arr, axis=0))
-    # opt_pose = np.asarray(opt_pose)
-    # print(opt_pose.shape)
-    # mapmax = np.amax(opt_pose) +2
-    # mapmin = np.amin(opt_pose) -2
-    # plot_pose(opt_pose,mapmax,mapmin)
+    optimization_class.optimize(10)
+    #plot opt
+    opt_pose = []
+    for i in range(len(pose_array)):
+        arr =optimization_class.get_pose(i).translation()
+        opt_pose.append(np.expand_dims(arr, axis=0))
+    opt_pose = np.asarray(opt_pose)
+    plot_pose(opt_pose)
 
     plt.show()
     # optimization_class.optimize(2)
