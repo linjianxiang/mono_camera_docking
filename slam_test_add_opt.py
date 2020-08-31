@@ -4,6 +4,7 @@ import glob
 import os
 import pickle
 import g2o
+import re
 from ORB_matching import matching
 from load_data import load_data
 from matplotlib import pyplot as plt
@@ -75,7 +76,8 @@ def main():
     dataset1_dir = '/home/linjian/dataset/tum_image/sequence_30/resized_images/'
     # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/load_unload/'
     filelist1 = glob.glob(dataset1_dir+'*.jpg')
-    filelist1 = sorted(filelist1)
+    # filelist1 = sorted(filelist1)
+    filelist1.sort(key=lambda f: int(re.sub('\D', '', f)))
     img_num = len(filelist1)
 
     #load scale as speed of the wheel
@@ -252,33 +254,33 @@ def main():
     #         opt.add_vertex(vertex_id,pose)
 
     #get measurement
-    for pairs in loopclosure_pairs:
-        # load loopclosed keyframe pairs
-        keyframe_id = pairs[0]
-        keyframe_id2 = pairs[1]
+    # for pairs in loopclosure_pairs:
+    #     # load loopclosed keyframe pairs
+    #     keyframe_id = pairs[0]
+    #     keyframe_id2 = pairs[1]
 
-        img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
-        img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
-        matching_class.load_image(img1,img2)
-        #scan matching
-        enough_match,matches = matching_class.match_images(detector)       
-        kp1_match,kp2_match = matches
+    #     img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
+    #     img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
+    #     matching_class.load_image(img1,img2)
+    #     #scan matching
+    #     enough_match,matches = matching_class.match_images(detector)       
+    #     kp1_match,kp2_match = matches
 
-        #calculate the relative scale
-        relative_scale = comput_relative_scale(kp1_match,kp2_match)
-        #remove absolute wrong scale
-        if relative_scale >3:
-            print('bad scale')
-            # continue
-        measurement_scale = relative_scale_list[keyframe_id]*relative_scale
-        dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
-        # dt = matching_class.getTransformation()
-        # print("scale, ",measurement_scale)
-        # print("dt, ", dt)
-        # print("dt, ", dt.shape)
-        measurement= measurement_scale*dt
-        #add to edge
-        optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
+    #     #calculate the relative scale
+    #     relative_scale = comput_relative_scale(kp1_match,kp2_match)
+    #     #remove absolute wrong scale
+    #     if relative_scale >3:
+    #         print('bad scale')
+    #         # continue
+    #     measurement_scale = relative_scale_list[keyframe_id]*relative_scale
+    #     dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
+    #     # dt = matching_class.getTransformation()
+    #     # print("scale, ",measurement_scale)
+    #     # print("dt, ", dt)
+    #     # print("dt, ", dt.shape)
+    #     measurement= measurement_scale*dt
+    #     #add to edge
+    #     optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
 
 
     # pair_id = 0
@@ -340,17 +342,17 @@ def main():
     print(pose_array.shape)
     # plt.show()
 
-    optimization_class.optimize(2)
-    #plot opt
-    opt_pose = []
-    for i in range(len(pose_array)):
-        arr =optimization_class.get_pose(i).translation()
-        opt_pose.append(np.expand_dims(arr, axis=0))
-    opt_pose = np.asarray(opt_pose)
-    print(opt_pose.shape)
-    mapmax = np.amax(opt_pose) +2
-    mapmin = np.amin(opt_pose) -2
-    plot_pose(opt_pose,mapmax,mapmin)
+    # optimization_class.optimize(2)
+    # #plot opt
+    # opt_pose = []
+    # for i in range(len(pose_array)):
+    #     arr =optimization_class.get_pose(i).translation()
+    #     opt_pose.append(np.expand_dims(arr, axis=0))
+    # opt_pose = np.asarray(opt_pose)
+    # print(opt_pose.shape)
+    # mapmax = np.amax(opt_pose) +2
+    # mapmin = np.amin(opt_pose) -2
+    # plot_pose(opt_pose,mapmax,mapmin)
 
     plt.show()
     # optimization_class.optimize(2)

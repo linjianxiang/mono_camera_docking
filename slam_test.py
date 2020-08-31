@@ -68,15 +68,19 @@ def main():
     #load images
     # dataset1_dir = '/home/linjian/datasets/Data_trajectory/2018-08-21/22_47_20_load/'
     # dataset2_dir = '/home/linjian/datasets/Data_trajectory/2018-08-22/'
-    dataset1_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
+    # dataset1_dir ='/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/'
     # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-22/16h-26m-42s load/'
+    # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/raw_data/2018-08-22/17h-21m-57s load/'
+    # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/raw_data/2018-08-22/17h-24m-21s unload/'
+    dataset1_dir = '/home/linjian/dataset/tum_image/sequence_30/resized_images/'
+    # dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/load_unload/'
     filelist1 = glob.glob(dataset1_dir+'*.jpg')
     filelist1 = sorted(filelist1)
     img_num = len(filelist1)
 
     #load scale as speed of the wheel
-    loaded_data = load_data(dataset1_dir)
-    scale = loaded_data.get_speed()
+    # loaded_data = load_data(dataset1_dir)
+    # scale = loaded_data.get_speed()
 
     #initialization
 
@@ -105,7 +109,7 @@ def main():
     #init loop closure class
     # loopclosure_class = loopclosure()
     loopclosure_pairs = []
-
+    max_num_lc = 50
 
     #init keypoints and descriptors
     keypoints_list = []
@@ -130,8 +134,8 @@ def main():
     #initialize matching class with camera parameters
     matching_class = matching(K,D)
     #create a detector
-    detector = cv2.ORB_create()
-    # for i in range(1,70): 
+    detector = cv2.ORB_create(nfeatures=800)
+    # for i in range(0,170): 
     # for i in range(1,img_num):
     for i in range(0,img_num):
         #insert images 
@@ -145,8 +149,9 @@ def main():
         #b. real scale are always not 0
         #c. have enough matches
         #d. the adjacent frames
-        if (enough_match == False or scale[i-1] < 0.001) and (frame_skipped < frame_skipped_threshold):
-            print("for the ",i,"image absolute scale is ",scale[i-1])
+        # if (enough_match == False or scale[i-1] < 0.001) and (frame_skipped < frame_skipped_threshold):
+        if (enough_match == False) and (frame_skipped < frame_skipped_threshold):
+            # print("for the ",i,"image absolute scale is ",scale[i-1])
             # print('not a good keyframe')
             frame_skipped = frame_skipped+1
             keyframe_index = keyframe_index+1
@@ -165,7 +170,7 @@ def main():
         #calculate the relative scale
         relative_scale = comput_relative_scale(kp1_match,kp2_match)
         #remove absolute wrong scale
-        if relative_scale >5:
+        if relative_scale >3:
             keyframe_index = keyframe_index+1
             print("keyframe index is ",keyframe_index)
             if keyframe_index >img_num-1:
@@ -175,7 +180,7 @@ def main():
         #
         cumulate_relative_scale = relative_scale_list[-1]*relative_scale
         relative_scale_list.append(cumulate_relative_scale)
-        print("for the ",i,"image relative scale between two keyframe is ",relative_scale)
+        # print("for the ",i,"image relative scale between two keyframe is ",relative_scale)
         print("for the ",i,"image calculated relative scale relate to the first keyframe is ",cumulate_relative_scale)      
  
 
@@ -206,7 +211,7 @@ def main():
         optimization_class.add_vertex(vertex_id,pose)
 
         #####add edge 
-        constraint = dt + np.random.normal(0,0.01,3)
+        constraint = dt + np.append(np.random.normal(0,0,2),np.array([0]),axis=0)
         constraint = np.transpose(constraint)
         optimization_class.add_edge(optimization_class.vertex(vertex_id),optimization_class.vertex(vertex_id-1),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),constraint))
 
@@ -214,10 +219,10 @@ def main():
 
         #find loop closure
         lc_index,lc_cost = bovw_class.find_lc(matching_class.des2)
-        lc_indices = bovw_class.get_lowest_costs_index(3) # number of lowest cost indices
+        lc_indices = bovw_class.get_lowest_costs_index(max_num_lc) # number of lowest cost indices
         print(lc_cost)
         for lc_i in lc_indices:
-            if (lc_cost < 0.02) and (lc_i < keyframe_number -1):
+            if (lc_cost < 0.05) and (lc_i < keyframe_number -10):
                 img_lc = cv2.imread(keyframe_file_list[lc_i])
                 cv2.imshow('Loop closure matched',img_lc)
                 #add the loopclosure kf to list
@@ -247,33 +252,33 @@ def main():
     #         opt.add_vertex(vertex_id,pose)
 
     #get measurement
-    for pairs in loopclosure_pairs:
-        # load loopclosed keyframe pairs
-        keyframe_id = pairs[0]
-        keyframe_id2 = pairs[1]
+    # for pairs in loopclosure_pairs:
+    #     # load loopclosed keyframe pairs
+    #     keyframe_id = pairs[0]
+    #     keyframe_id2 = pairs[1]
 
-        img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
-        img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
-        matching_class.load_image(img1,img2)
-        #scan matching
-        enough_match,matches = matching_class.match_images(detector)       
-        kp1_match,kp2_match = matches
+    #     img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
+    #     img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
+    #     matching_class.load_image(img1,img2)
+    #     #scan matching
+    #     enough_match,matches = matching_class.match_images(detector)       
+    #     kp1_match,kp2_match = matches
 
-        #calculate the relative scale
-        relative_scale = comput_relative_scale(kp1_match,kp2_match)
-        #remove absolute wrong scale
-        if relative_scale >5:
-            print('bad scale')
-            # continue
-        measurement_scale = relative_scale_list[keyframe_id]*relative_scale
-        dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
-        # dt = matching_class.getTransformation()
-        # print("scale, ",measurement_scale)
-        # print("dt, ", dt)
-        # print("dt, ", dt.shape)
-        measurement= measurement_scale*dt
-        #add to edge
-        optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
+    #     #calculate the relative scale
+    #     relative_scale = comput_relative_scale(kp1_match,kp2_match)
+    #     #remove absolute wrong scale
+    #     if relative_scale >3:
+    #         print('bad scale')
+    #         # continue
+    #     measurement_scale = relative_scale_list[keyframe_id]*relative_scale
+    #     dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
+    #     # dt = matching_class.getTransformation()
+    #     # print("scale, ",measurement_scale)
+    #     # print("dt, ", dt)
+    #     # print("dt, ", dt.shape)
+    #     measurement= measurement_scale*dt
+    #     #add to edge
+    #     optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
 
 
     # pair_id = 0
@@ -313,7 +318,7 @@ def main():
     # print("optimized fisrt pose is ", optimization_class.get_pose(0).translation())
     # print("optimized fisrt pose is ", optimization_class.get_pose(1).translation())
     # print("optimized fisrt pose is ", optimization_class.get_pose(2).translation())
-    optimization_class.optimize(2)
+    # optimization_class.optimize(2)
     # print("optimized fisrt pose is ", optimization_class.get_pose(0).translation())
     # print("optimized fisrt pose is ", optimization_class.get_pose(1).translation())
     # print("optimized fisrt pose is ", optimization_class.get_pose(2).translation())
@@ -333,19 +338,44 @@ def main():
     mapmin = np.amin(pose_array) -2
     plot_pose(pose_array,mapmax,mapmin)
     print(pose_array.shape)
-    #plot opt
-    opt_pose = []
-    for i in range(len(pose_array)):
-        arr =optimization_class.get_pose(i).translation()
-        opt_pose.append(np.expand_dims(arr, axis=0))
-    opt_pose = np.asarray(opt_pose)
-    print(opt_pose.shape)
-    mapmax = np.amax(opt_pose) +2
-    mapmin = np.amin(opt_pose) -2
-    plot_pose(opt_pose,mapmax,mapmin)
+    # plt.show()
 
+    # optimization_class.optimize(2)
+    # #plot opt
+    # opt_pose = []
+    # for i in range(len(pose_array)):
+    #     arr =optimization_class.get_pose(i).translation()
+    #     opt_pose.append(np.expand_dims(arr, axis=0))
+    # opt_pose = np.asarray(opt_pose)
+    # print(opt_pose.shape)
+    # mapmax = np.amax(opt_pose) +2
+    # mapmin = np.amin(opt_pose) -2
+    # plot_pose(opt_pose,mapmax,mapmin)
 
     plt.show()
+    # optimization_class.optimize(2)
+    # opt_pose = []
+    # for i in range(len(pose_array)):
+    #     arr =optimization_class.get_pose(i).translation()
+    #     opt_pose.append(np.expand_dims(arr, axis=0))
+    # opt_pose = np.asarray(opt_pose)
+    # print(opt_pose.shape)
+    # mapmax = np.amax(opt_pose) +2
+    # mapmin = np.amin(opt_pose) -2
+    # plot_pose(opt_pose,mapmax,mapmin)
+    # plt.show()
+    # optimization_class.optimize(2)
+    # opt_pose = []
+    # for i in range(len(pose_array)):
+    #     arr =optimization_class.get_pose(i).translation()
+    #     opt_pose.append(np.expand_dims(arr, axis=0))
+    # opt_pose = np.asarray(opt_pose)
+    # print(opt_pose.shape)
+    # mapmax = np.amax(opt_pose) +2
+    # mapmin = np.amin(opt_pose) -2
+    # plot_pose(opt_pose,mapmax,mapmin)
+
+    # plt.show()
     # ax.plot3D(pose_array, yline, zline, 'gray')
     # plt.show()
     #kp1_match = np.array([kp1[mat.queryIdx].pt for mat in good])

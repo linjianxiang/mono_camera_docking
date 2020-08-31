@@ -6,6 +6,7 @@ import glob
 import pickle
 import os
 import sys
+import re
 
 def save_trained_bovw(kmeans):
     pickle.dump(kmeans,open("bovw_database.pkl","wb"))
@@ -38,7 +39,7 @@ def generate_db_trainingset(top_folder_dir):
     
 class bovw:
     def __init__(self,detector):
-        self.cluster_number = 40
+        self.cluster_number = 200
         self.detector = detector
         self.his = []
         #load bovw and
@@ -59,7 +60,7 @@ class bovw:
         return descriptor_list,image_descriptors
 
     def descriptor_cluster(self,descriptor_list):
-        kmeans = KMeans(n_clusters =self.cluster_number,n_init=10)
+        kmeans = KMeans(n_clusters =self.cluster_number,n_init=40)
         kmeans.fit(descriptor_list)
         return kmeans
 
@@ -170,7 +171,9 @@ class bovw:
             return
 
         filelist = glob.glob(dataset_dir+'*.jpg')
-        self.filelist = sorted(filelist)
+        # self.filelist = sorted(filelist)
+        filelist.sort(key=lambda f: int(re.sub('\D', '', f)))
+        self.filelist  = filelist
         if (os.path.isfile('./bovw_database.pkl') and os.path.isfile('bovw_lib.pkl')):
             print("The bovw lib 'bovw_database.pkl' exist")
             return
@@ -376,7 +379,7 @@ if __name__ == "__main__":
 
 
     # #testing
-    test_image_dir = image_set_dir+'55.jpg'
+    test_image_dir = image_set_dir+'155.jpg'
     bovw_class.test(test_image_dir)
     lc_indices = bovw_class.get_lowest_costs_index(100)
     print(lc_indices)
