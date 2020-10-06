@@ -80,7 +80,8 @@ def main():
     dataset1_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/load_unload/'
     filelist1 = glob.glob(dataset1_dir+'*.jpg')
     # filelist1 = sorted(filelist1)
-    filelist1.sort(key=lambda f: int(re.sub('\D', '', f)))
+    filelist1.sort(key=lambda f: float(re.findall(r'(\d+\.\d)', f)[0]))
+    print(filelist1)
     img_num = len(filelist1)
 
     #load scale as speed of the wheel
