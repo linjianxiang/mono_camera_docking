@@ -380,7 +380,8 @@ if __name__ == "__main__":
 
 
     # #testing
-    test_image_dir = image_set_dir+'2.0.jpg'
+    # test_image_dir = image_set_dir+'2.0.jpg'
+    test_image_dir = '/home/linjian/dataset/docking_dataset/image/Data_trajectory/2018-08-21/22_47_20_load/1534891669.83.jpg'
     bovw_class.test(test_image_dir)
     lc_indices = bovw_class.get_lowest_costs_index(100)
     print(lc_indices)

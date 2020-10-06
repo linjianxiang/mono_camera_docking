@@ -241,6 +241,38 @@ def main():
                 #scale calculate, 1st calutate the good matches, then relative scale
                 # lc_scale = comput_relative_scale(,)
                 # print('lc scale is ', scale[i-2]/relative_scale_list[i-1]*lc_scale)
+
+                #add edge 
+                keyframe_id = lc_i
+                keyframe_id2 = keyframe_number
+
+                img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
+                img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
+                matching_class.load_image(img1,img2)
+                #scan matching
+                enough_match,matches = matching_class.match_images(detector)     
+                cv2.waitKey(1)   
+                kp1_match,kp2_match = matches
+
+                #calculate the relative scale
+                relative_scale = comput_relative_scale(kp1_match,kp2_match)
+                #remove absolute wrong scale
+                if relative_scale >2:
+                    print('bad scale')
+                    # continue
+                measurement_scale = relative_scale_list[keyframe_id]*relative_scale
+                dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
+                # dt = matching_class.getTransformation()
+                # print("scale, ",measurement_scale)
+                # print("dt, ", dt)
+                # print("dt, ", dt.shape)
+                measurement= measurement_scale*dt
+                #add to edge
+                optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
+
+        optimization_class.optimize(2)
+
+
         cv2.waitKey(1) 
         #assign new keyframe image
         keyframe_number = keyframe_number+1
@@ -268,34 +300,36 @@ def main():
 
     save_to_pickle(keyframe_file_list,"keyframe_file_list.pkl")
     save_to_pickle(loopclosure_pairs,"loopclosure_pairs.pkl")
-    for pairs in loopclosure_pairs:
-        # load loopclosed keyframe pairs
-        keyframe_id = pairs[0]
-        keyframe_id2 = pairs[1]
 
-        img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
-        img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
-        matching_class.load_image(img1,img2)
-        #scan matching
-        enough_match,matches = matching_class.match_images(detector)     
-        cv2.waitKey(1)   
-        kp1_match,kp2_match = matches
+    #add edges
+    # for pairs in loopclosure_pairs:
+    #     # load loopclosed keyframe pairs
+    #     keyframe_id = pairs[0]
+    #     keyframe_id2 = pairs[1]
 
-        #calculate the relative scale
-        relative_scale = comput_relative_scale(kp1_match,kp2_match)
-        #remove absolute wrong scale
-        if relative_scale >2:
-            print('bad scale')
-            # continue
-        measurement_scale = relative_scale_list[keyframe_id]*relative_scale
-        dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
-        # dt = matching_class.getTransformation()
-        # print("scale, ",measurement_scale)
-        # print("dt, ", dt)
-        # print("dt, ", dt.shape)
-        measurement= measurement_scale*dt
-        #add to edge
-        optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
+    #     img1 = cv2.imread(keyframe_file_list[keyframe_id]) 
+    #     img2 = cv2.imread(keyframe_file_list[keyframe_id2]) 
+    #     matching_class.load_image(img1,img2)
+    #     #scan matching
+    #     enough_match,matches = matching_class.match_images(detector)     
+    #     cv2.waitKey(1)   
+    #     kp1_match,kp2_match = matches
+
+    #     #calculate the relative scale
+    #     relative_scale = comput_relative_scale(kp1_match,kp2_match)
+    #     #remove absolute wrong scale
+    #     if relative_scale >2:
+    #         print('bad scale')
+    #         # continue
+    #     measurement_scale = relative_scale_list[keyframe_id]*relative_scale
+    #     dt = np.transpose(pose_array[keyframe_id2]- pose_array[keyframe_id])
+    #     # dt = matching_class.getTransformation()
+    #     # print("scale, ",measurement_scale)
+    #     # print("dt, ", dt)
+    #     # print("dt, ", dt.shape)
+    #     measurement= measurement_scale*dt
+    #     #add to edge
+    #     optimization_class.add_edge(optimization_class.vertex(keyframe_id2),optimization_class.vertex(keyframe_id),measurement=g2o.Isometry3d(g2o.Quaternion(0,0,0,1),measurement))
 
 
     # pair_id = 0
